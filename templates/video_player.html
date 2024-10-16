@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Video Player</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+        }
+        .video-container {
+            flex: 2;
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        video {
+            width: 100%;
+            display: block;
+        }
+        .controls-wrapper {
+            position: relative;
+            height: 36px;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        .bookmark {
+            position: absolute;
+            bottom: 0;
+            width: 4px;
+            height: 36px;
+            transform: translateX(-50%);
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+        }
+        .bookmark:hover {
+            opacity: 0.8;
+        }
+        .bookmark::after {
+            content: attr(data-label);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s ease;
+            border: 2px solid;
+        }
+        .bookmark:hover::after {
+            visibility: visible;
+            opacity: 1;
+        }
+        .notes-section {
+            margin-top: 20px;
+        }
+        .notes-section textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        .captions {
+            flex: 1;
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .caption-item {
+            margin-bottom: 15px;
+        }
+        .caption-time {
+            font-weight: bold;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="video-section">
+            <div class="video-container">
+                <video id="videoPlayer" controls>
+                    <source src="/static/sample.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <div class="controls-wrapper"></div>
+            </div>
+            <div class="notes-section">
+                <textarea placeholder="Add your notes here..."></textarea>
+            </div>
+        </div>
+        <div class="captions">
+            <h3>Video Captions</h3>
+            <div id="captionsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const video = document.getElementById('videoPlayer');
+            const controlsWrapper = document.querySelector('.controls-wrapper');
+            const captionsContent = document.getElementById('captionsContent');
+
+            const bookmarks = {{ bookmarks|tojson }};
+
+            video.addEventListener('loadedmetadata', function() {
+                const duration = video.duration;
+                
+                bookmarks.forEach(bookmark => {
+                    const bookmarkElement = document.createElement('div');
+                    bookmarkElement.className = 'bookmark';
+                    bookmarkElement.setAttribute('data-label', bookmark.label);
+                    bookmarkElement.style.left = `${(bookmark.time / duration) * 100}%`;
+                    bookmarkElement.style.backgroundColor = bookmark.color;
+                    bookmarkElement.style.borderColor = bookmark.color;
+                    controlsWrapper.appendChild(bookmarkElement);
+
+                    bookmarkElement.addEventListener('click', (e) => {
+                        video.currentTime = bookmark.time;
+                    });
+                });
+            });
+
+            // Generate fake captions
+            const fakeCaptions = [
+                { time: "00:05", text: "Introduction to the topic" },
+                { time: "00:15", text: "Explaining the main concept" },
+                { time: "00:30", text: "Demonstrating the first example" },
+                { time: "00:45", text: "Discussing potential applications" },
+                { time: "01:00", text: "Addressing common misconceptions" },
+                { time: "01:15", text: "Summarizing key points" },
+                { time: "01:30", text: "Conclusion and final thoughts" }
+            ];
+
+            fakeCaptions.forEach(caption => {
+                const captionElement = document.createElement('div');
+                captionElement.className = 'caption-item';
+                captionElement.innerHTML = `<span class="caption-time">${caption.time}</span> - ${caption.text}`;
+                captionsContent.appendChild(captionElement);
+            });
+
+            video.addEventListener('error', function(e) {
+                console.error('Video error:', video.error);
+            });
+        });
+    </script>
+</body>
+</html>
