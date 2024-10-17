@@ -9,11 +9,11 @@ dependencies:
   - uvicorn
   - jinja2
   - ffmpeg
-  - pip:
-    - deepspeech
-    - transformers
-    - torch
-    - numpy
-    - wave
-    - python-multipart
-    - aiofiles
+  # - pip:
+  #   - deepspeech
+  #   - transformers
+  #   - torch
+  #   - numpy
+  #   - wave
+  #   - python-multipart
+  #   - aiofiles

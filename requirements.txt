@@ -1,0 +1,8 @@
+
+deepspeech
+transformers
+torch
+numpy>=1.17
+wave
+python-multipart
+aiofiles
