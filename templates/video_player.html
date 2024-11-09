@@ -47,19 +47,64 @@
             height: 48px;
             background-color: #f5f5f5;
             border-top: 1px solid #e0e0e0;
+            width: 100%;
         }
         .bookmark {
             position: absolute;
             bottom: 0;
-            width: 6px;
+            width: 8px;
             height: 48px;
             transform: translateX(-50%);
-            cursor: pointer;
+            cursor: grab;
             transition: all 0.2s ease;
+            border-radius: 2px;
         }
-        .bookmark:hover {
+        .bookmark.dragging {
+            cursor: grabbing;
             opacity: 0.8;
-            height: 52px;
+        }
+        .bookmark-handle {
+            position: absolute;
+            right: -4px;
+            top: 0;
+            width: 8px;
+            height: 100%;
+            cursor: ew-resize;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .bookmark:hover .bookmark-handle {
+            opacity: 1;
+        }
+        .bookmark-controls {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 8px;
+            border-radius: 4px;
+            display: none;
+            white-space: nowrap;
+            z-index: 10;
+            min-width: 200px;
+        }
+        .bookmark:hover .bookmark-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .color-picker {
+            width: 30px;
+            height: 20px;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+        }
+        .bookmark-duration {
+            color: white;
+            font-size: 12px;
+            margin-left: 8px;
         }
         .bookmark::after {
             content: attr(data-label);
@@ -190,6 +235,63 @@
                 flex-direction: column;
             }
         }
+        .bookmark-controls-container {
+            padding: 10px;
+            display: flex;
+            justify-content: flex-end;
+            background-color: #fff;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+        }
+
+        .bookmark-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px;
+            transition: background-color 0.2s ease;
+        }
+
+        .bookmark-button:hover {
+            background-color: #1565c0;
+        }
+
+        .bookmark-button i {
+            font-size: 20px;
+        }
+
+        .label-input {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            width: 120px;
+        }
+
+        .delete-bookmark {
+            background: none;
+            border: none;
+            color: #ff5252;
+            cursor: pointer;
+            padding: 4px;
+            margin-left: 8px;
+        }
+
+        .delete-bookmark:hover {
+            color: #ff1744;
+        }
+
+        .delete-bookmark i {
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
@@ -206,6 +308,12 @@
                         Your browser does not support the video tag.
                     </video>
                     <div class="controls-wrapper"></div>
+                    <div class="bookmark-controls-container">
+                        <button id="addBookmark" class="bookmark-button">
+                            <i class="material-icons">bookmark_add</i>
+                            Add Bookmark
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="transcript-section">
@@ -239,27 +347,165 @@
         document.addEventListener('DOMContentLoaded', function() {
             const video = document.getElementById('videoPlayer');
             const controlsWrapper = document.querySelector('.controls-wrapper');
-            const captionsContent = document.getElementById('captionsContent');
+            const addBookmarkBtn = document.getElementById('addBookmark');
+            
+            let bookmarks = {{ bookmarks|tojson }} || [];
+            let nextBookmarkId = bookmarks.length;
 
-            const bookmarks = {{ bookmarks|tojson }};
+            // Add Bookmark Button Click Handler
+            addBookmarkBtn.addEventListener('click', () => {
+                const currentTime = video.currentTime;
+                const newBookmark = {
+                    id: nextBookmarkId++,
+                    time: currentTime,
+                    label: `Bookmark at ${formatTime(currentTime)}`,
+                    color: getRandomColor()
+                };
+                
+                bookmarks.push(newBookmark);
+                createBookmark(newBookmark, video.duration);
+            });
+
+            function getRandomColor() {
+                const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
 
             video.addEventListener('loadedmetadata', function() {
                 const duration = video.duration;
-                
                 bookmarks.forEach(bookmark => {
-                    const bookmarkElement = document.createElement('div');
-                    bookmarkElement.className = 'bookmark';
-                    bookmarkElement.setAttribute('data-label', bookmark.label);
-                    bookmarkElement.style.left = `${(bookmark.time / duration) * 100}%`;
-                    bookmarkElement.style.backgroundColor = bookmark.color;
-                    bookmarkElement.style.borderColor = bookmark.color;
-                    controlsWrapper.appendChild(bookmarkElement);
-
-                    bookmarkElement.addEventListener('click', (e) => {
-                        video.currentTime = bookmark.time;
-                    });
+                    createBookmark(bookmark, duration);
                 });
             });
+
+            function createBookmark(bookmark, duration) {
+                const bookmarkElement = document.createElement('div');
+                bookmarkElement.className = 'bookmark';
+                bookmarkElement.style.left = `${(bookmark.time / duration) * 100}%`;
+                bookmarkElement.style.backgroundColor = bookmark.color;
+                bookmarkElement.setAttribute('data-label', bookmark.label);
+                bookmarkElement.setAttribute('data-id', bookmark.id);
+                
+                // Add resize handle
+                const handle = document.createElement('div');
+                handle.className = 'bookmark-handle';
+                bookmarkElement.appendChild(handle);
+                
+                // Add controls with delete button
+                const controls = document.createElement('div');
+                controls.className = 'bookmark-controls';
+                controls.innerHTML = `
+                    <input type="color" class="color-picker" value="${bookmark.color}">
+                    <input type="text" class="label-input" value="${bookmark.label}">
+                    <span class="bookmark-duration">${formatTime(bookmark.time)}</span>
+                    <button class="delete-bookmark">
+                        <i class="material-icons">delete</i>
+                    </button>
+                `;
+                bookmarkElement.appendChild(controls);
+                
+                controlsWrapper.appendChild(bookmarkElement);
+
+                // Delete button handler
+                const deleteBtn = controls.querySelector('.delete-bookmark');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    bookmarkElement.remove();
+                    bookmarks = bookmarks.filter(b => b.id !== bookmark.id);
+                });
+
+                // Label input handler
+                const labelInput = controls.querySelector('.label-input');
+                labelInput.addEventListener('change', (e) => {
+                    const newLabel = e.target.value;
+                    bookmark.label = newLabel;
+                    bookmarkElement.setAttribute('data-label', newLabel);
+                });
+
+                // Existing event listeners
+                bookmarkElement.addEventListener('mousedown', startDragging);
+                handle.addEventListener('mousedown', startResizing);
+                
+                const colorPicker = controls.querySelector('.color-picker');
+                colorPicker.addEventListener('input', (e) => {
+                    bookmark.color = e.target.value;
+                    bookmarkElement.style.backgroundColor = e.target.value;
+                });
+
+                // Click to seek video
+                bookmarkElement.addEventListener('click', () => {
+                    video.currentTime = bookmark.time;
+                });
+            }
+
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                seconds = Math.floor(seconds % 60);
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            function startDragging(e) {
+                if (e.target.classList.contains('bookmark-handle') || 
+                    e.target.classList.contains('color-picker')) return;
+                    
+                isDragging = true;
+                activeBookmark = e.target;
+                startX = e.clientX;
+                startLeft = parseFloat(activeBookmark.style.left);
+                
+                activeBookmark.classList.add('dragging');
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('mouseup', stopDragging);
+            }
+
+            function startResizing(e) {
+                e.stopPropagation();
+                isResizing = true;
+                activeBookmark = e.target.parentElement;
+                startX = e.clientX;
+                startWidth = parseFloat(activeBookmark.style.width) || 8;
+                
+                document.addEventListener('mousemove', resize);
+                document.addEventListener('mouseup', stopResizing);
+            }
+
+            function drag(e) {
+                if (!isDragging) return;
+                
+                const dx = e.clientX - startX;
+                const containerWidth = controlsWrapper.offsetWidth;
+                const newLeft = Math.max(0, Math.min(100, startLeft + (dx / containerWidth * 100)));
+                
+                activeBookmark.style.left = `${newLeft}%`;
+                updateBookmarkTime(activeBookmark, newLeft);
+            }
+
+            function resize(e) {
+                if (!isResizing) return;
+                
+                const dx = e.clientX - startX;
+                const containerWidth = controlsWrapper.offsetWidth;
+                const newWidth = Math.max(8, startWidth + (dx / containerWidth * 100));
+                
+                activeBookmark.style.width = `${newWidth}px`;
+            }
+
+            function stopDragging() {
+                if (!isDragging) return;
+                
+                isDragging = false;
+                activeBookmark.classList.remove('dragging');
+                document.removeEventListener('mousemove', drag);
+                document.removeEventListener('mouseup', stopDragging);
+            }
+
+            function stopResizing() {
+                if (!isResizing) return;
+                
+                isResizing = false;
+                document.removeEventListener('mousemove', resize);
+                document.removeEventListener('mouseup', stopResizing);
+            }
 
             // Generate fake captions
             const fakeCaptions = [

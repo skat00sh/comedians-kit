@@ -36,11 +36,14 @@ async def read_root(request: Request):
         improved_transcription = f"Transcription not available: {str(e)}"
         print("Transcription error:", str(e))  # Debug print
 
+    # Define bookmarks with proper structure
     bookmarks = [
         {"time": 10, "label": "Big laugh here", "color": "#FF0000"},
         {"time": 25, "label": "Smirks no laughs", "color": "#FFFF00"},
         {"time": 40, "label": "Okayish laughs", "color": "#FFA500"},
     ]
+
+    print("Bookmarks being passed:", bookmarks)  # Debug print
 
     return templates.TemplateResponse(
         "video_player.html", 
@@ -48,6 +51,6 @@ async def read_root(request: Request):
             "request": request, 
             "bookmarks": bookmarks,
             "transcript": improved_transcription,
-            "raw_transcript": transcription  # Adding raw transcript as well
+            "raw_transcript": transcription
         }
     )
