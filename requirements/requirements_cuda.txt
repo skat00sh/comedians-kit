@@ -1,0 +1,5 @@
+-r base.txt
+torch>=2.0.0+cu118
+transformers>=4.30.0
+jax[cuda12]
+openai-whisper>=1.0.0
